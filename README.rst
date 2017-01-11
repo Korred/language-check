@@ -2,6 +2,7 @@ language-check
 ==============
 
 Python wrapper for LanguageTool.
+This fork drops support for LanguageTool version <= 3.5 in favor of version 3.6 and above.
 
 .. image:: https://travis-ci.org/myint/language-check.svg?branch=master
     :target: https://travis-ci.org/myint/language-check
