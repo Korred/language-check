@@ -2,7 +2,9 @@ language-check
 ==============
 
 Python wrapper for LanguageTool.
+
 This fork drops support for LanguageTool version <= 3.5 in favor of version 3.6 and above.
+
 
 .. image:: https://travis-ci.org/myint/language-check.svg?branch=master
     :target: https://travis-ci.org/myint/language-check
@@ -24,16 +26,26 @@ From the interpreter:
 >>> len(matches)
 2
 
-Check out some ``Match`` object attributes:
+``Match`` object attributes:
 
->>> matches[0].fromy, matches[0].fromx
-(0, 16)
->>> matches[0].ruleId, matches[0].replacements
-('EN_A_VS_AN', ['an'])
->>> matches[1].fromy, matches[1].fromx
-(0, 50)
->>> matches[1].ruleId, matches[1].replacements
-('TOT_HE', ['to the'])
+(based on Model from https://languagetool.org/http-api/swagger-ui/#!/default/post_check)
+
+shortMessage,
+message,
+offset,
+length,
+replacements, 
+context,
+contextoffset,
+ruleId,
+subId,
+ruledescription,
+urls,
+issueType,
+category,
+categoryId,
+
+
 
 Print a ``Match`` object:
 
@@ -74,7 +86,7 @@ Prerequisites
 - `Python 3.3+ <https://www.python.org>`_ (or 2.7)
 - `lib3to2 <https://bitbucket.org/amentajo/lib3to2>`_
   (if installing for Python 2)
-- `LanguageTool <https://www.languagetool.org>`_ (Java 6.0+)
+- `LanguageTool 3.6 or greater <https://www.languagetool.org>`_ (Java 6.0+)
 
 
 The installation process should take care of downloading LanguageTool (it may
