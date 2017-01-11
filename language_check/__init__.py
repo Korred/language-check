@@ -27,8 +27,12 @@ import re
 import socket
 import sys
 import threading
+import time
 import urllib.parse
 import urllib.request
+
+import json
+
 from collections import OrderedDict
 from functools import total_ordering
 from weakref import WeakValueDictionary
@@ -85,10 +89,9 @@ class PathError(Error):
     pass
 
 
-def get_replacement_list(string, sep='#'):
-    if isinstance(string, list):
-        return string
-    return string.split(sep) if string else []
+def get_list(lst):
+    # changes for 3.6
+    return [l["value"] for l in lst]
 
 
 def auto_type(string):
@@ -100,18 +103,32 @@ def auto_type(string):
         except ValueError:
             return string
 
+# changes for 3.6
+
 
 @total_ordering
-class Match:
+class Match(object):
 
     """Hold information about where a rule matches text."""
     _SLOTS = OrderedDict([
-        ('fromy', int), ('fromx', int), ('toy', int), ('tox', int),
-        ('ruleId', str), ('subId', str), ('msg', str),
-        ('replacements', get_replacement_list),
-        ('context', str), ('contextoffset', int),
-        ('offset', int), ('errorlength', int),
-        ('url', str), ('category', str), ('locqualityissuetype', str),
+        ("shortMessage", str),
+        ("message", str),
+        ("offset", int),
+        ("errorlength", int),
+
+        ('replacements', get_list),
+
+        ('context', str), 
+        ('contextoffset', int),
+
+        ('ruleId', str),
+        ('subId', str),
+        ('ruledescription', str),
+        ("urls", get_list),
+        ('issueType', str),
+
+        ("category", str),
+        ("categoryId", str)
     ])
 
     def __init__(self, attrib):
@@ -137,10 +154,10 @@ class Match:
         ruleId = self.ruleId
         if self.subId is not None:
             ruleId += '[{}]'.format(self.subId)
-        s = 'Line {}, column {}, Rule ID: {}'.format(
-            self.fromy + 1, self.fromx + 1, ruleId)
-        if self.msg:
-            s += '\nMessage: {}'.format(self.msg)
+        s = 'Offset {}, Length {}, Rule ID: {}'.format(
+            self.offset + 1, self.errorlength, ruleId)
+        if self.message:
+            s += '\nMessage: {}'.format(self.message)
         if self.replacements:
             s += '\nSuggestion: {}'.format('; '.join(self.replacements))
         s += '\n{}\n{}'.format(
@@ -158,11 +175,45 @@ class Match:
         return iter(getattr(self, attr) for attr in self._SLOTS)
 
     def __setattr__(self, name, value):
-        try:
-            value = self._SLOTS[name](value)
-        except KeyError:
-            value = auto_type(value)
-        super().__setattr__(name, value)
+        data = []
+
+        if name == "context":
+            data = [("context", value["text"]), 
+                    ("contextoffset", value["offset"]),
+                    ("errorlength", value["length"])]
+
+        elif name == "rule":
+            data = [("ruleId", value["id"]),
+                    ("ruledescription", value["description"])]
+
+            optional = [("urls", "urls"),
+                        ("subId", "subId"),
+                        ("issueType", "issueType")]
+
+            optional_category = [("category", "name"),
+                                 ("categoryID", "id")]
+
+            for n, v in optional:
+                try:
+                    data.append((n, value[v]))
+                except KeyError:
+                    pass
+
+            for n, v in optional_category:
+                try:
+                    data.append((n, value["category"][v]))
+                except KeyError:
+                    pass
+
+        else:
+            data = [(name, value)]
+
+        for n, v in data:
+            try:
+                value = self._SLOTS[n](v)
+            except KeyError:
+                value = auto_type(v)
+            super().__setattr__(n, value)
 
     def __getattr__(self, name):
         if name not in self._SLOTS:
@@ -240,14 +291,19 @@ class LanguageTool:
 
     def check(self, text: str, srctext=None) -> [Match]:
         """Match text against enabled rules."""
-        root = self._get_root(self._url, self._encode(text, srctext))
-        return [Match(e.attrib) for e in root if e.tag == 'error']
+        # CHANGES FOR 3.6
+        url = urllib.parse.urljoin(self._url, 'check?')
+        root = self._get_root(url, self._encode(text, srctext))
+        return [Match(e) for e in root["matches"]]
 
     def _check_api(self, text: str, srctext=None) -> bytes:
         """Match text against enabled rules (result in XML format)."""
-        root = self._get_root(self._url, self._encode(text, srctext))
-        return (b'<?xml version="1.0" encoding="UTF-8"?>\n' +
-                ElementTree.tostring(root) + b"\n")
+        
+        url = urllib.parse.urljoin(self._url, 'check?')
+        root = self._get_root(url, self._encode(text, srctext))
+        return [Match(e) for e in root["matches"]]
+
+
 
     def _encode(self, text, srctext=None):
         params = {'language': self.language, 'text': text.encode('utf-8')}
@@ -280,11 +336,11 @@ class LanguageTool:
         """Get supported languages (by querying the server)."""
         if not cls._server_is_alive():
             cls._start_server_on_free_port()
-        url = urllib.parse.urljoin(cls._url, 'Languages')
+        url = urllib.parse.urljoin(cls._url, 'languages')
         languages = set()
         for e in cls._get_root(url, num_tries=1):
-            languages.add(e.get('abbr'))
-            languages.add(e.get('abbrWithVariant'))
+            languages.add(e["code"])
+            languages.add(e["longCode"])
         return languages
 
     @classmethod
@@ -302,9 +358,18 @@ class LanguageTool:
         for n in range(num_tries):
             try:
                 with urlopen(url, data, cls._TIMEOUT) as f:
-                    return ElementTree.parse(f).getroot()
+                    # modifications for LanguageTool 3.6 and above
+                    content = f.read().decode("UTF-8")
+                    obj = json.loads(content)
+                    #######
+                    return obj
+
             except (IOError, http.client.HTTPException) as e:
                 cls._terminate_server()
+
+                time.sleep(5) 
+                # patch from https://github.com/myint/language-check/issues/16
+                # wait for a while for the server to properly terminate
                 cls._start_server()
                 if n + 1 >= num_tries:
                     raise Error('{}: {}'.format(cls._url, e))
@@ -312,7 +377,7 @@ class LanguageTool:
     @classmethod
     def _start_server_on_free_port(cls):
         while True:
-            cls._url = 'http://{}:{}'.format(cls._HOST, cls._port)
+            cls._url = 'http://{}:{}/v2/'.format(cls._HOST, cls._port)
             try:
                 cls._start_server()
                 break
