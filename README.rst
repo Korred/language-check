@@ -5,15 +5,6 @@ Python wrapper for LanguageTool.
 
 This fork drops support for LanguageTool version <= 3.5 in favor of version 3.6 and above.
 
-
-.. image:: https://travis-ci.org/myint/language-check.svg?branch=master
-    :target: https://travis-ci.org/myint/language-check
-    :alt: Build status
-
-This is a fork of
-https://bitbucket.org/spirit/language_tool that produces more easily parsable
-results from the command-line.
-
 Example usage
 -------------
 
@@ -86,26 +77,4 @@ Prerequisites
 - `Python 3.3+ <https://www.python.org>`_ (or 2.7)
 - `lib3to2 <https://bitbucket.org/amentajo/lib3to2>`_
   (if installing for Python 2)
-- `LanguageTool 3.6 or greater <https://www.languagetool.org>`_ (Java 6.0+)
-
-
-The installation process should take care of downloading LanguageTool (it may
-take a few minutes). Otherwise, you can manually download
-`LanguageTool-stable.zip
-<https://www.languagetool.org/download/LanguageTool-stable.zip>`_ and unzip it
-into where the ``language_check`` package resides.
-
-Vim plugin
-----------
-
-To use language-check in Vim, install Syntastic_ and use the following
-settings:
-
-.. code-block:: vim
-
-    let g:syntastic_text_checkers = ['language_check']
-    let g:syntastic_text_language_check_args = '--language=en-US'
-
-Customize your language as appropriate.
-
-.. _Syntastic: https://github.com/scrooloose/syntastic
+- `LanguageTool 3.6 or greater <https://www.languagetool.org>`_ (Java 6.0+) - download manually and place into language-check folder
