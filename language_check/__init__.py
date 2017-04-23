@@ -245,8 +245,10 @@ class LanguageTool:
                 language = FAILSAFE_LANGUAGE
         self._language = LanguageTag(language)
         self.motherTongue = motherTongue
-        self.disabled = set()
-        self.enabled = set()
+        self.disabled_rules = set()
+        self.enabled_rules = set()
+        self.disabled_cat = set()
+        self.enabled_cat = set()
         self.enabled_only = False
         self._instances[id(self)] = self
 
@@ -311,10 +313,14 @@ class LanguageTool:
             params['srctext'] = srctext.encode('utf-8')
         if self.motherTongue is not None:
             params['motherTongue'] = self.motherTongue
-        if self.disabled:
-            params['disabled'] = ','.join(self.disabled)
-        if self.enabled:
-            params['enabled'] = ','.join(self.enabled)
+        if self.disabled_cat:
+            params['disabledCategories'] = ','.join(self.disabled_cat)
+        if self.enabled_cat:
+            params['enabledCategories'] = ','.join(self.enabled_cat)
+        if self.disabled_rules:
+            params['disabledRules'] = ','.join(self.disabled_rules)
+        if self.enabled_rules:
+            params['enabledRules'] = ','.join(self.enabled_rules)
         if self.enabled_only:
             params['enabledOnly'] = 'yes'
         return urllib.parse.urlencode(params).encode()
